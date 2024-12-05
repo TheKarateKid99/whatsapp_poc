@@ -31,13 +31,39 @@ export async function POST(request: NextRequest) {
   const headersList = headers();
   //const xHubSigrature256 = headersList.get('x-hub-signature-256');
   console.log('Original Request',request);
-  const rawRequestBody = await request.json();
-  console.log('Request',rawRequestBody);
+  const rawRequestBody = await request.text();
+  
   // if (!xHubSigrature256 || !verifyWebhook(rawRequestBody, xHubSigrature256)) {
   //   console.warn(`Invalid signature : ${xHubSigrature256}`)
   //   return new NextResponse(null, { status: 401 })
   // }
-  const webhookBody = JSON.parse(rawRequestBody) as TwilioWebHookBody;
+  
+
+  const parsedObject = Object.fromEntries(new URLSearchParams(rawRequestBody).entries());
+
+  const webhookBody: TwilioWebHookBody = {
+      object: "whatsapp_business_account",
+      SmsMessage: {
+          SmsMessageSid: parsedObject.SmsMessageSid,
+          NumMedia: parsedObject.NumMedia,
+          ProfileName: parsedObject.ProfileName,
+          MessageType: parsedObject.MessageType,
+          SmsSid: parsedObject.SmsSid,
+          WaId: parsedObject.WaId,
+          SmsStatus: parsedObject.SmsStatus,
+          Body: parsedObject.Body,
+          To: parsedObject.To,
+          MessagingServiceSid: parsedObject.MessagingServiceSid,
+          NumSegments: parsedObject.NumSegments,
+          ReferralNumMedia: parsedObject.ReferralNumMedia,
+          MessageSid: parsedObject.MessageSid,
+          AccountSid: parsedObject.AccountSid,
+          From: parsedObject.From,
+          ApiVersion: parsedObject.ApiVersion,
+      },
+  };
+
+
     const supabase = createServiceClient()
     let { error } = await supabase
       .from(DBTables.Webhook)
