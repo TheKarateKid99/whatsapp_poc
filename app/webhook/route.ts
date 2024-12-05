@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { verifyWebhook } from '@/lib/verify';
-import { WebHookRequest } from '../../types/webhook';
+import { WebHookRequest,TwilioWebHookBody } from '../../types/webhook';
 import { createServiceClient } from '@/lib/supabase/service-client';
 import { DBTables } from '@/lib/enums/Tables';
 import { downloadMedia } from './media';
@@ -35,61 +35,47 @@ export async function POST(request: NextRequest) {
   //   console.warn(`Invalid signature : ${xHubSigrature256}`)
   //   return new NextResponse(null, { status: 401 })
   // }
-  const webhookBody = JSON.parse(rawRequestBody) as WebHookRequest;
-  if (webhookBody.entry.length > 0) {
+  const webhookBody = JSON.parse(rawRequestBody) as TwilioWebHookBody;
     const supabase = createServiceClient()
     let { error } = await supabase
       .from(DBTables.Webhook)
-      .insert(webhookBody.entry.map((entry) => {
-        return { payload: entry }
-      }))
+      .insert(webhookBody)
     if (error) throw error
-    const changes = webhookBody.entry[0].changes;
-    if (changes.length > 0) {
-      if (changes[0].field === "messages") {
-        const changeValue = changes[0].value;
-        const contacts = changeValue.contacts;
-        const messages = changeValue.messages;
-        const statuses = changeValue.statuses;
-        if (contacts && contacts.length > 0) {
-          for (const contact of contacts) {
-            let { error } = await supabase
+    const messageProps = webhookBody
+    if (!webhookBody) {
+      if (messageProps.MessageType === "text") {
+            let error = await supabase
               .from(DBTables.Contacts)
               .upsert({
-                wa_id: contact.wa_id,
-                profile_name: contact.profile.name,
+                wa_id: messageProps.WaId,
+                profile_name: messageProps.ProfileName,
                 last_message_at: new Date(),
                 last_message_received_at: new Date(),
                 in_chat: true,
               })
             if (error) throw error
-          }
-        }
-        if (messages) {
-          let { error } = await supabase
+
+           error  = await supabase
             .from(DBTables.Messages)
-            .upsert(messages.map(message => {
-              return {
-                chat_id: message.from,
-                message: message,
-                wam_id: message.id,
-                created_at: new Date(Number.parseInt(message.timestamp) * 1000),
+            .upsert(
+               {
+                chat_id: messageProps.WaId,
+                message: messageProps.Body,
+                wam_id: messageProps.MessageSid,
+                created_at: new Date(),
                 is_received: true,
-              }
-            }), { onConflict: 'wam_id', ignoreDuplicates: true })
+              }, { onConflict: 'wam_id', ignoreDuplicates: true })
+
           if (error) throw new Error("Error while inserting messages to database", { cause: error})
-          for (const message of messages) {
-            if (message.type === 'image' || message.type === 'video' || message.type === 'document') {
-              await downloadMedia(message)
-            }
-          }
-          await updateBroadCastReplyStatus(messages)
+          // for (const message of messages) {
+          //   if (message.type === 'image' || message.type === 'video' || message.type === 'document') {
+          //     await downloadMedia(message)
+          //   }
+          // }
+          //await updateBroadCastReplyStatus(messages)
           await supabase.functions.invoke('update-unread-count', { body: {
-            chat_id: messages.map(m => m.from).filter((m, i, a) => a.indexOf(m) === i)
+            chat_id: messageProps.WaId
           }})
-        }
-        if (statuses && statuses.length > 0) {
-          for (const status of statuses) {
             const update_obj: {
               wam_id_in: string,
               sent_at_in?: Date,
@@ -97,23 +83,23 @@ export async function POST(request: NextRequest) {
               read_at_in?: Date,
               failed_at_in?: Date,
             } = {
-              wam_id_in: status.id,
+              wam_id_in: messageProps.MessageSid,
             }
             let functionName: 'update_message_delivered_status' | 'update_message_read_status' | 'update_message_sent_status' | 'update_message_failed_status' | null = null;
-            if (status.status === 'sent') {
-              update_obj.sent_at_in = new Date(Number.parseInt(status.timestamp) * 1000)
+            if (messageProps.SmsStatus === 'sent') {
+              update_obj.sent_at_in = new Date()
               functionName = 'update_message_sent_status'
-            } else if (status.status === 'delivered') {
-              update_obj.delivered_at_in = new Date(Number.parseInt(status.timestamp) * 1000)
+            } else if (messageProps.SmsStatus === 'delivered') {
+              update_obj.delivered_at_in = new Date()
               functionName = 'update_message_delivered_status'
-            } else if (status.status === 'read') {
-              update_obj.read_at_in = new Date(Number.parseInt(status.timestamp) * 1000)
+            } else if (messageProps.SmsStatus === 'read') {
+              update_obj.read_at_in = new Date()
               functionName = 'update_message_read_status'
-            } else if (status.status === 'failed') {
-              update_obj.failed_at_in = new Date(Number.parseInt(status.timestamp) * 1000)
+            } else if (messageProps.SmsStatus === 'failed') {
+              update_obj.failed_at_in = new Date()
               functionName = 'update_message_failed_status'
             } else {
-              console.warn(`Unknown status : ${status.status}`)
+              console.warn(`Unknown status : ${messageProps.SmsStatus}`)
               console.warn('status', status)
               return new NextResponse()
             }
@@ -121,16 +107,15 @@ export async function POST(request: NextRequest) {
               const { data, error: updateDeliveredStatusError } = await supabase.rpc(functionName, update_obj)
               if (updateDeliveredStatusError) throw new Error(`Error while updating status, functionName: ${functionName} wam_id: ${status.id} status: ${status.status}`, { cause: updateDeliveredStatusError })
               console.log(`${functionName} data`, data)
-              if (data) {
-                await updateBroadCastStatus(status)
-              } else {
-                console.warn(`Status already updated : ${status.id} : ${status.status}`)
-              }
+              // if (data) {
+              //   await updateBroadCastStatus(messageProps.SmsStatus)
+              // } else {
+              //   console.warn(`Status already updated : ${status.id} : ${status.status}`)
+              // }
             }
-          }
-        }
+          
       }
     }
-  }
+  
   return new NextResponse()
 }
