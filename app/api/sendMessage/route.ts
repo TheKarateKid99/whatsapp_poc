@@ -234,7 +234,7 @@ async function sendWhatsAppMessage(to: string, message: string | null | undefine
         .insert({
             message: msgToPut,
             wam_id: wamId,
-            chat_id: Number.parseInt(response.to),
+            chat_id: Number.parseInt(to),
             media_url: mediaUrl,
         })
     console.log(supabaseResponse)
