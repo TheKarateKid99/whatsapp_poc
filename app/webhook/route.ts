@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { verifyWebhook } from '@/lib/verify';
-import { WebHookRequest,TwilioWebHookBody } from '../../types/webhook';
+import { TwilioWebHookBody,WhatsAppMessage } from '../../types/webhook';
 import { createServiceClient } from '@/lib/supabase/service-client';
 import { DBTables } from '@/lib/enums/Tables';
 import { downloadMedia } from './media';
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
   // }
   
   const parsedObject = Object.fromEntries(new URLSearchParams(rawRequestBody).entries());
-  console.log('Raw Object',parsedObject);
 
   const webhookBody: TwilioWebHookBody = {
       object: "whatsapp_business_account",
@@ -81,13 +80,21 @@ export async function POST(request: NextRequest) {
               })
             if (error) throw error
         }
-
+        const messageBody: WhatsAppMessage = {
+          id: messageProps.MessageSid,
+          from: messageProps.WaId,
+          text: {
+              body: messageProps.Body,
+          },
+          type: "text",
+          timestamp: Math.floor(Date.now() / 1000).toString()
+      };
            let {error}  = await supabase
             .from(DBTables.Messages)
             .upsert(
                {
                 chat_id: messageProps.WaId,
-                message: messageProps.Body,
+                message: messageBody,
                 wam_id: messageProps.MessageSid,
                 created_at: new Date(),
                 is_received: true,
@@ -127,7 +134,7 @@ export async function POST(request: NextRequest) {
               functionName = 'update_message_failed_status'
             } else {
               console.warn(`Unknown status : ${messageProps.SmsStatus}`)
-              console.warn('status', status)
+              console.warn('status', messageProps.SmsStatus)
               return new NextResponse()
             }
             if (functionName) {

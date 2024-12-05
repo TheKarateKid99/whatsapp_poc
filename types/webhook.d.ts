@@ -77,3 +77,13 @@ export type TwilioWebHookBody = {
         ApiVersion: string;
 
 }
+
+export type WhatsAppMessage = {
+    id: string;
+    from: string;
+    text: {
+        body: string;
+    };
+    type: "text";
+    timestamp: string;
+};
