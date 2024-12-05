@@ -134,12 +134,16 @@ async function uploadFile(file: File, to: string) {
 }
 
 async function sendWhatsAppMessage(to: string, message: string | null | undefined, fileType: string | undefined | null, file: File | undefined | null, template: TemplateRequest | undefined | null) {
-    console.log("WHATSAPP_API_PHONE_NUMBER_ID", process.env.WHATSAPP_API_PHONE_NUMBER_ID)
-    console.log("WHATSAPP_ACCESS_TOKEN", process.env.WHATSAPP_ACCESS_TOKEN)
+    
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const messageServiceId = process.env.TWILIO_MESSAGE_SERVICE_ID;
+
+    console.log("TWILIO_ACCOUNT_SID", process.env.TWILIO_ACCOUNT_SID)
+    console.log("TWILIO_AUTH_TOKEN", process.env.TWILIO_AUTH_TOKEN)
+    console.log("TWILIO_MESSAGE_SERVICE_ID", process.env.TWILIO_MESSAGE_SERVICE_ID)
+
     const client = twilio(accountSid, authToken);
 
     const WHATSAPP_API_URL = `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_API_PHONE_NUMBER_ID}/messages`;
