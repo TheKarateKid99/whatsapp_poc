@@ -58,7 +58,7 @@ export type WebHookRequest = {
 export type TwilioWebHookBody = {
     
     object: "whatsapp_business_account",
-    SmsMessage : {
+
         SmsMessageSid: string;
         NumMedia: string;
         ProfileName: string;
@@ -75,5 +75,5 @@ export type TwilioWebHookBody = {
         AccountSid: string;
         From: string;
         ApiVersion: string;
-    }
+
 }
