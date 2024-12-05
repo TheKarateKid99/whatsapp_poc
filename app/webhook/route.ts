@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
     let { error } = await supabase
       .from(DBTables.Webhook)
-      .insert(webhookBody)
+      .insert({payload: webhookBody})
     if (error) throw error
     const messageProps = webhookBody
     if (!webhookBody) {
