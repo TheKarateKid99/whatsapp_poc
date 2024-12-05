@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 export async function POST(request: NextRequest) {
   const headersList = headers();
   //const xHubSigrature256 = headersList.get('x-hub-signature-256');
-  console.log('Original Request',request);
+  
   const rawRequestBody = await request.text();
   
   // if (!xHubSigrature256 || !verifyWebhook(rawRequestBody, xHubSigrature256)) {
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
   //   return new NextResponse(null, { status: 401 })
   // }
   
-
   const parsedObject = Object.fromEntries(new URLSearchParams(rawRequestBody).entries());
+  console.log('Raw Object',parsedObject);
 
   const webhookBody: TwilioWebHookBody = {
       object: "whatsapp_business_account",
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
           ApiVersion: parsedObject.ApiVersion,
   };
 
-
+  console.log('webhookBody',webhookBody);
     const supabase = createServiceClient()
     let { error } = await supabase
       .from(DBTables.Webhook)
