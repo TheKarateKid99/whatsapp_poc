@@ -61,16 +61,16 @@ export async function POST(request: NextRequest) {
           ApiVersion: parsedObject.ApiVersion,
   };
 
-  console.log('webhookBody',webhookBody);
     const supabase = createServiceClient()
     let { error } = await supabase
       .from(DBTables.Webhook)
       .insert({payload: webhookBody})
     if (error) throw error
     const messageProps = webhookBody
-    if (!webhookBody) {
+      console.log('MessageType: ',messageProps.MessageType);
       if (messageProps.MessageType === "text") {
-            let error = await supabase
+        if(messageProps.WaId !== null || messageProps.ProfileName !== null){
+            let {error} = await supabase
               .from(DBTables.Contacts)
               .upsert({
                 wa_id: messageProps.WaId,
@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
                 in_chat: true,
               })
             if (error) throw error
+        }
 
-           error  = await supabase
+           let {error}  = await supabase
             .from(DBTables.Messages)
             .upsert(
                {
@@ -141,7 +142,6 @@ export async function POST(request: NextRequest) {
             }
           
       }
-    }
   
   return new NextResponse()
 }
