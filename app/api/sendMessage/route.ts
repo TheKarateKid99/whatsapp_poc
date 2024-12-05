@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service-client";
 import { createClient } from "@/utils/supabase-server";
 import { TemplateRequest, TextParameter } from "@/types/message-template-request";
 import { MessageTemplate, MessageTemplateComponent } from "@/types/message-template";
+import twilio from 'twilio';
 
 type Media = {
     id?: string;
@@ -133,6 +134,14 @@ async function uploadFile(file: File, to: string) {
 }
 
 async function sendWhatsAppMessage(to: string, message: string | null | undefined, fileType: string | undefined | null, file: File | undefined | null, template: TemplateRequest | undefined | null) {
+    console.log("WHATSAPP_API_PHONE_NUMBER_ID", process.env.WHATSAPP_API_PHONE_NUMBER_ID)
+    console.log("WHATSAPP_ACCESS_TOKEN", process.env.WHATSAPP_ACCESS_TOKEN)
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const messageServiceId = process.env.TWILIO_MESSAGE_SERVICE_ID;
+    const client = twilio(accountSid, authToken);
+
     const WHATSAPP_API_URL = `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_API_PHONE_NUMBER_ID}/messages`;
     const payload: Message = {
         messaging_product: "whatsapp",
@@ -187,20 +196,22 @@ async function sendWhatsAppMessage(to: string, message: string | null | undefine
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
     };
-    const res = await fetch(WHATSAPP_API_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-        const responseStatus = await res.status
-        const response = await res.text()
-        throw new Error(responseStatus + response);
-    }
+    try {
+    const twilioMessage = await client.messages.create({
+        body: message!!,
+        messagingServiceSid: messageServiceId,
+        to: to,
+      });
+    // const res = await fetch(WHATSAPP_API_URL, {
+    //     method: 'POST',
+    //     headers,
+    //     body: JSON.stringify(payload)
+    // });
+   
     const msgToPut: any = structuredClone(payload)
     delete msgToPut.messaging_product;
-    const response = await res.json()
-    const wamId = response.messages[0].id;
+    const response = twilioMessage
+    const wamId = response.sid;
     msgToPut['id'] = wamId
     const supabase = createServiceClient()
     if (payload.template) {
@@ -219,10 +230,19 @@ async function sendWhatsAppMessage(to: string, message: string | null | undefine
         .insert({
             message: msgToPut,
             wam_id: wamId,
-            chat_id: Number.parseInt(response.contacts[0].wa_id),
+            chat_id: Number.parseInt(response.to),
             media_url: mediaUrl,
         })
     console.log(supabaseResponse)
+}
+catch (error ) {
+    if (error instanceof Error) {
+    console.log("Oops Error")
+    const response = error.message
+    throw new Error(response);
+    }
+    throw new Error('An unexpected error occurred');
+}
 }
 
 export async function POST(request: NextRequest) {
