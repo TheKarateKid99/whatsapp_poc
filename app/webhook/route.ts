@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
             }
             if (functionName) {
               const { data, error: updateDeliveredStatusError } = await supabase.rpc(functionName, update_obj)
-              if (updateDeliveredStatusError) throw new Error(`Error while updating status, functionName: ${functionName} wam_id: ${status.id} status: ${status.status}`, { cause: updateDeliveredStatusError })
-              console.log(`${functionName} data`, data)
+              if (updateDeliveredStatusError) throw new Error(`Error while updating status, functionName: ${functionName} wam_id: ${messageProps.MessageSid} status: ${messageProps.SmsStatus}`, { cause: updateDeliveredStatusError })
+              //console.log(`${functionName} data`, data)
               // if (data) {
               //   await updateBroadCastStatus(messageProps.SmsStatus)
               // } else {
