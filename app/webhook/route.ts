@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 export async function POST(request: NextRequest) {
   const headersList = headers();
   //const xHubSigrature256 = headersList.get('x-hub-signature-256');
-  const rawRequestBody = await request.text()
+  const rawRequestBody = await request.json()
   // if (!xHubSigrature256 || !verifyWebhook(rawRequestBody, xHubSigrature256)) {
   //   console.warn(`Invalid signature : ${xHubSigrature256}`)
   //   return new NextResponse(null, { status: 401 })
