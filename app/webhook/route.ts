@@ -30,7 +30,8 @@ export async function GET(request: Request) {
 export async function POST(request: NextRequest) {
   const headersList = headers();
   //const xHubSigrature256 = headersList.get('x-hub-signature-256');
-  const rawRequestBody = await request.json()
+  const rawRequestBody = await request.text()
+  console.log('Request',rawRequestBody);
   // if (!xHubSigrature256 || !verifyWebhook(rawRequestBody, xHubSigrature256)) {
   //   console.warn(`Invalid signature : ${xHubSigrature256}`)
   //   return new NextResponse(null, { status: 401 })
@@ -43,12 +44,12 @@ export async function POST(request: NextRequest) {
     if (error) throw error
     const messageProps = webhookBody
     if (!webhookBody) {
-      if (messageProps.MessageType === "text") {
+      if (messageProps.SmsMessage.MessageType === "text") {
             let error = await supabase
               .from(DBTables.Contacts)
               .upsert({
-                wa_id: messageProps.WaId,
-                profile_name: messageProps.ProfileName,
+                wa_id: messageProps.SmsMessage.WaId,
+                profile_name: messageProps.SmsMessage.ProfileName,
                 last_message_at: new Date(),
                 last_message_received_at: new Date(),
                 in_chat: true,
@@ -59,9 +60,9 @@ export async function POST(request: NextRequest) {
             .from(DBTables.Messages)
             .upsert(
                {
-                chat_id: messageProps.WaId,
-                message: messageProps.Body,
-                wam_id: messageProps.MessageSid,
+                chat_id: messageProps.SmsMessage.WaId,
+                message: messageProps.SmsMessage.Body,
+                wam_id: messageProps.SmsMessage.MessageSid,
                 created_at: new Date(),
                 is_received: true,
               }, { onConflict: 'wam_id', ignoreDuplicates: true })
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
           // }
           //await updateBroadCastReplyStatus(messages)
           await supabase.functions.invoke('update-unread-count', { body: {
-            chat_id: messageProps.WaId
+            chat_id: messageProps.SmsMessage.WaId
           }})
             const update_obj: {
               wam_id_in: string,
@@ -83,29 +84,29 @@ export async function POST(request: NextRequest) {
               read_at_in?: Date,
               failed_at_in?: Date,
             } = {
-              wam_id_in: messageProps.MessageSid,
+              wam_id_in: messageProps.SmsMessage.MessageSid,
             }
             let functionName: 'update_message_delivered_status' | 'update_message_read_status' | 'update_message_sent_status' | 'update_message_failed_status' | null = null;
-            if (messageProps.SmsStatus === 'sent') {
+            if (messageProps.SmsMessage.SmsStatus === 'sent') {
               update_obj.sent_at_in = new Date()
               functionName = 'update_message_sent_status'
-            } else if (messageProps.SmsStatus === 'delivered') {
+            } else if (messageProps.SmsMessage.SmsStatus === 'delivered') {
               update_obj.delivered_at_in = new Date()
               functionName = 'update_message_delivered_status'
-            } else if (messageProps.SmsStatus === 'read') {
+            } else if (messageProps.SmsMessage.SmsStatus === 'read') {
               update_obj.read_at_in = new Date()
               functionName = 'update_message_read_status'
-            } else if (messageProps.SmsStatus === 'failed') {
+            } else if (messageProps.SmsMessage.SmsStatus === 'failed') {
               update_obj.failed_at_in = new Date()
               functionName = 'update_message_failed_status'
             } else {
-              console.warn(`Unknown status : ${messageProps.SmsStatus}`)
+              console.warn(`Unknown status : ${messageProps.SmsMessage.SmsStatus}`)
               console.warn('status', status)
               return new NextResponse()
             }
             if (functionName) {
               const { data, error: updateDeliveredStatusError } = await supabase.rpc(functionName, update_obj)
-              if (updateDeliveredStatusError) throw new Error(`Error while updating status, functionName: ${functionName} wam_id: ${messageProps.MessageSid} status: ${messageProps.SmsStatus}`, { cause: updateDeliveredStatusError })
+              if (updateDeliveredStatusError) throw new Error(`Error while updating status, functionName: ${functionName} wam_id: ${messageProps.SmsMessage.MessageSid} status: ${messageProps.SmsMessage.SmsStatus}`, { cause: updateDeliveredStatusError })
               //console.log(`${functionName} data`, data)
               // if (data) {
               //   await updateBroadCastStatus(messageProps.SmsStatus)
