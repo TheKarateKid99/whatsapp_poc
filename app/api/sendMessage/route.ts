@@ -204,7 +204,7 @@ async function sendWhatsAppMessage(to: string, message: string | null | undefine
     const twilioMessage = await client.messages.create({
         body: message!!,
         messagingServiceSid: messageServiceId,
-        to: to,
+        to: `whatsapp:${to}`,
       });
     // const res = await fetch(WHATSAPP_API_URL, {
     //     method: 'POST',
