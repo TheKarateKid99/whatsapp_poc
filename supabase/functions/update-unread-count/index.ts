@@ -19,6 +19,7 @@ serve(async (req) => {
             console.error("Error while fetching unread messasge count", error)
             continue
         }
+        console.log(`Updating UnRead Count for ID: ${chatId} unread messages: ${count}`)
         const { error: updateError } = await supabase.from('contacts').update({ unread_count: count }).eq('wa_id', chatId)
         if (updateError) console.error("Error while updating unread messasge count", updateError)
     }

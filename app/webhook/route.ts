@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
             } = {
               wam_id_in: messageProps.MessageSid,
             }
+            //This section is only relavent when we send messages to clients and not receiving
             let functionName: 'update_message_delivered_status' | 'update_message_read_status' | 'update_message_sent_status' | 'update_message_failed_status' | null = null;
             if (messageProps.SmsStatus === 'sent') {
               update_obj.sent_at_in = new Date()
