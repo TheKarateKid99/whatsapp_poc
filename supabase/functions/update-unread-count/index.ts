@@ -6,8 +6,7 @@ serve(async (req) => {
     const supabase = createSupabaseClient(authorizationHeader)
 
     const reqData = await req.json()
-    const chatIds = reqData.chat_id
-    for (const chatId of chatIds) {
+    const chatId = reqData.chat_id
         console.log('chatId', chatId)
         const { count, error } = await supabase
             .from('messages')
@@ -17,12 +16,13 @@ serve(async (req) => {
             .eq('is_received', true)
         if (error) {
             console.error("Error while fetching unread messasge count", error)
-            continue
+            return new Response(
+                '{"success": false"}',
+            )
         }
         console.log(`Updating UnRead Count for ID: ${chatId} unread messages: ${count}`)
         const { error: updateError } = await supabase.from('contacts').update({ unread_count: count }).eq('wa_id', chatId)
         if (updateError) console.error("Error while updating unread messasge count", updateError)
-    }
 
     return new Response(
         '{"success": true"}',
